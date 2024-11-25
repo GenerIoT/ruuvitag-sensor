@@ -105,7 +105,7 @@ class DataFormats:
             return (0xFA, candidate[6:])
         
         if candidate.startswith("FF990408"):
-            return (8, candidate[6:])
+            return (8, (candidate[6:] + rssi) if rssi else candidate[6:])
         
         if candidate.startswith("16AAFE"):
             # TODO: Check from raw data correct data format

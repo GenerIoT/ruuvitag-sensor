@@ -44,7 +44,19 @@ class SensorData5(SensorDataBase):
     rssi: Optional[int]
 
 
-SensorData = Union[SensorDataUrl, SensorData3, SensorData5]
+class SensorData8(SensorDataBase):
+    humidity: float
+    temperature: float
+    pressure: float
+    tx_power: int
+    battery: int
+    movement_counter: int
+    measurement_sequence_number: int
+    mac: str
+    rssi: Optional[int]
+
+
+SensorData = Union[SensorDataUrl, SensorData3, SensorData5, SensorData8]
 
 DataFormat = Optional[int]
 RawSensorData = Optional[str]

@@ -4,7 +4,9 @@ import math
 import struct
 from typing import Optional, Tuple, Union
 
-from ruuvitag_sensor.ruuvi_types import ByteData, SensorData3, SensorData5, SensorDataUrl
+from ruuvitag_sensor.ruuvi_types import ByteData, SensorData3, SensorData5, SensorDataUrl, SensorData8
+
+from Crypto.Cipher import AES
 
 log = logging.getLogger(__name__)
 
@@ -35,6 +37,8 @@ def get_decoder(data_type: int):
     
     if data_type == 8:
         log.warning("DATA TYPE 8 not supported!")
+        return Df8Decoder()
+    
     return Df5Decoder()
 
 
@@ -353,6 +357,129 @@ class Df5Decoder:
                 "movement_counter": self._get_movementcounter(byte_data),
                 "measurement_sequence_number": self._get_measurementsequencenumber(byte_data),
                 "mac": self._get_mac(byte_data),
+                "rssi": self._get_rssi(rssi) if rssi else None,
+            }
+        except Exception:
+            log.exception("Value: %s not valid", data)
+            return None   
+
+class Df8Decoder:
+    """
+    Decodes data from RuuviTag with Data Format 8
+    Protocol specification:
+    https://github.com/ruuvi/ruuvi-sensor-protocols
+    """
+
+    def _get_temperature(self, data: ByteData) -> Optional[float]:
+        """Return temperature in celsius"""
+        if data[0] == -32768:
+            return None
+
+        return round(data[0] / 200, 2)
+
+    def _get_humidity(self, data: ByteData) -> Optional[float]:
+        """Return humidity %"""
+        if data[1] == 65535:
+            return None
+
+        return round(data[1] / 400, 2)
+
+    def _get_pressure(self, data: ByteData) -> Optional[float]:
+        """Return air pressure hPa"""
+        if data[2] == 0xFFFF:
+            return None
+
+        return round((data[2] + 50000) / 100, 2)
+
+    def _get_powerinfo(self, data: ByteData) -> Tuple[int, int]:
+        """Return battery voltage and tx power"""
+        battery_voltage = data[3] >> 5
+        tx_power = data[3] & 0x001F
+
+        return (battery_voltage, tx_power)
+
+    def _get_battery(self, data: ByteData) -> Optional[int]:
+        """Return battery mV"""
+        battery_voltage = self._get_powerinfo(data)[0]
+        if battery_voltage == 0b11111111111:
+            return None
+
+        return battery_voltage + 1600
+
+    def _get_txpower(self, data: ByteData) -> Optional[int]:
+        """Return transmit power"""
+        tx_power = self._get_powerinfo(data)[1]
+        if tx_power == 0b11111:
+            return None
+
+        return -40 + (tx_power * 2)
+
+    def _get_movementcounter(self, data: ByteData) -> int:
+        return data[4]
+
+    def _get_measurementsequencenumber(self, data: ByteData) -> int:
+        return data[5]
+
+    def _get_rssi(self, rssi_byte: str) -> int:
+        """Return RSSI value in dBm."""
+        rssi = int(rssi_byte, 16)
+        if rssi > 127:
+            rssi = (256 - rssi) * -1
+        return rssi
+    
+    def _generate_key( self, app_key, device_id):
+
+        # Convert app_key from hex string to a list of integer bytes
+        app_key_bytes = [int(app_key[i:i+2], 16) for i in range(0, len(app_key), 2)]
+        
+        # Convert device_id from hex string to an integer
+        device_id_int = int(device_id, 16)
+        
+        # Copy the converted app_key
+        key = bytearray(app_key_bytes)
+
+        # Apply XOR operation with device ID bytes
+        for i in range(8):
+            # Extract the relevant byte from device_id and XOR it with key[i]
+            key[i] ^= (device_id_int >> (i * 8)) & 0xFF
+
+        return key
+    
+    def _decrypt_data(self, key, encrypted_data):
+        cipher = AES.new(key, AES.MODE_ECB)
+        decrypted_data = cipher.decrypt(encrypted_data)
+        return decrypted_data
+
+    def decode_data(self, data: str) -> Optional[SensorData8]:
+        """
+        Decode sensor data.
+
+        Returns:
+            dict: Sensor values
+        """
+        try:
+            app_key = "5275757669436f6d5275757669546167"
+            deviceID = "87D2D464E8B90162"
+
+            key = self._generate_key(app_key, deviceID)
+
+            encrypted = data[2:34]
+            decrypted = self._decrypt_data(key, bytes.fromhex(encrypted))
+
+            byte_data: ByteData = struct.unpack(">h5H4B", decrypted)
+            mac = data[36:48]
+            rssi = data[48:]
+
+            return {
+                "data_format": 8,
+                "humidity": self._get_humidity(byte_data),  # type: ignore
+                "temperature": self._get_temperature(byte_data),  # type: ignore
+                "pressure": self._get_pressure(byte_data),  # type: ignore
+                "tx_power": self._get_txpower(byte_data),  # type: ignore
+                "battery": self._get_battery(byte_data),  # type: ignore
+                "movement_counter": self._get_movementcounter(byte_data),
+                "measurement_sequence_number": self._get_measurementsequencenumber(byte_data),
+                "mac": mac,
                 "rssi": self._get_rssi(rssi) if rssi else None,
             }
         except Exception:
