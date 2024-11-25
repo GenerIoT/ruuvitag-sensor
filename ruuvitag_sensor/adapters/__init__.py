@@ -1,5 +1,6 @@
 import abc
 import os
+import sys
 from typing import AsyncGenerator, Generator, List
 
 from ruuvitag_sensor.ruuvi_types import MacAndRawData, RawData
@@ -35,15 +36,21 @@ def get_ble_adapter():
         return BleCommunicationNixFile()
 
     if is_ci_env:
-        # Use BleCommunicationDummy for CI as it can't use Bleak/BlueZ
+        # Use BleCommunicationDummy for CI as it can't use BlueZ
         from ruuvitag_sensor.adapters.dummy import BleCommunicationDummy
 
         return BleCommunicationDummy()
 
-    # Bleak is default adapter for all platforms
-    from ruuvitag_sensor.adapters.bleak_ble import BleCommunicationBleak
+    # Use default adapter for platform
+    if sys.platform.startswith("win") or sys.platform.startswith("darwin"):
+        from ruuvitag_sensor.adapters.bleak_ble import BleCommunicationBleak
 
-    return BleCommunicationBleak()
+        return BleCommunicationBleak()
+
+    # BlueZ is default for Linux
+    from ruuvitag_sensor.adapters.nix_hci import BleCommunicationNix
+
+    return BleCommunicationNix()
 
 
 def is_async_adapter(ble: object):

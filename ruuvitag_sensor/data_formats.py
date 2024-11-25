@@ -101,6 +101,12 @@ class DataFormats:
         if candidate.startswith("FF990405"):
             return (5, (candidate[6:] + rssi) if rssi else candidate[6:])
 
+        if candidate.startswith("FF9904FA"):
+            return (0xFA, candidate[6:])
+        
+        if candidate.startswith("FF990408"):
+            return (8, candidate[6:])
+        
         if candidate.startswith("16AAFE"):
             # TODO: Check from raw data correct data format
             # Now this returns 2 also for Data Format 4

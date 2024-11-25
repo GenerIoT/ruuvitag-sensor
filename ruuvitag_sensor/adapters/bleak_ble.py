@@ -28,15 +28,15 @@ def _get_scanner(detection_callback: AdvertisementDataCallback, bt_device: str =
 
     if bt_device:
         return BleakScanner(
-            detection_callback=detection_callback,
-            scanning_mode=scanning_mode,  # type: ignore[arg-type]
-            adapter=bt_device,
-        )
+            detection_callback=detection_callback, scanning_mode=scanning_mode, adapter=bt_device
+        )  # type: ignore[arg-type]
 
     return BleakScanner(detection_callback=detection_callback, scanning_mode=scanning_mode)  # type: ignore[arg-type]
 
 
-queue = asyncio.Queue[Tuple[str, str]]()
+# TODO: Python 3.7 - TypeError: 'type' object is not subscriptable
+# queue = asyncio.Queue[Tuple[str, str]]()
+queue = asyncio.Queue()  # type: ignore
 
 log = logging.getLogger(__name__)
 

@@ -1,4 +1,9 @@
-from typing import Optional, Tuple, TypedDict, Union
+from typing import Optional, Tuple, Union
+
+try:
+    from typing import TypedDict  # >=3.8
+except ImportError:
+    from mypy_extensions import TypedDict  # <=3.7
 
 
 class SensorDataBase(TypedDict):
