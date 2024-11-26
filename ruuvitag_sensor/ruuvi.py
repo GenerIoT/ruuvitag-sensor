@@ -333,4 +333,4 @@ class RuuviTagSensor:
             log.debug("MAC not whitelisted: %s", mac_to_send)
             return None
 
-        return (mac_to_send, decoded)
+        return (decoded["mac"], decoded)
