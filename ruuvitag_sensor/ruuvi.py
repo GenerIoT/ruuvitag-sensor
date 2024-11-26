@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 import logging
 import time
 from multiprocessing import Manager
@@ -295,6 +296,7 @@ class RuuviTagSensor:
     def _parse_data(
         ble_data: MacAndRawData, mac_blacklist: ListProxy, allowed_macs: List[str] = []
     ) -> Optional[MacAndSensorData]:
+        time = datetime.now(timezone.utc)
         (mac, payload) = ble_data
         (data_format, data) = DataFormats.convert_data(payload)
 
@@ -312,6 +314,7 @@ class RuuviTagSensor:
             return None
 
         decoded = get_decoder(data_format).decode_data(data)
+        decoded["timestamp"] = time.isoformat()
         if decoded is None:
             log.error("Decoded data is null. MAC: %s - Raw: %s", mac, payload)
             return None

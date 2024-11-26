@@ -54,7 +54,7 @@ class SensorData8(SensorDataBase):
     measurement_sequence_number: int
     mac: str
     rssi: Optional[int]
-
+    timestamp: str
 
 SensorData = Union[SensorDataUrl, SensorData3, SensorData5, SensorData8]
 
